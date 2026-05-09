@@ -1,5 +1,5 @@
-// api/lib/db.js — Vercel KV 持久化数据库层
-const { kv } = require('@vercel/kv');
+// api/lib/db.js — Vercel Blob 持久化数据库层
+const { put, list, del, head } = require('@vercel/blob');
 const fs = require('fs');
 const path = require('path');
 
@@ -9,67 +9,83 @@ function loadSeed(filename) {
   return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 }
 
-// 懒加载种子数据
 let _diapers = null, _terms = null, _levels = null;
+function diapers() { if (!_diapers) _diapers = loadSeed('diapers.json'); return _diapers; }
+function terms() { if (!_terms) _terms = loadSeed('terms.json'); return _terms; }
+function levels() { if (!_levels) _levels = loadSeed('levels.json'); return _levels; }
 
-function diapers() {
-  if (!_diapers) _diapers = loadSeed('diapers.json');
-  return _diapers;
-}
-function terms() {
-  if (!_terms) _terms = loadSeed('terms.json');
-  return _terms;
-}
-function levels() {
-  if (!_levels) _levels = loadSeed('levels.json');
-  return _levels;
-}
+// Blob 操作 — 用 token 避免并发冲突
+const BLOB_PREFIX = 'db/';
+const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN || '';
 
-// KV 操作 — 读写键值对，自动解析 JSON
-async function getJson(key) {
-  const raw = await kv.get(key);
-  return raw || null;
+async function readCollection(key) {
+  const { blobs } = await list({ prefix: BLOB_PREFIX + key, token: BLOB_TOKEN });
+  if (blobs.length === 0) return [];
+  // 找最新的 blob
+  const latest = blobs.sort((a,b) => b.uploadedAt - a.uploadedAt)[0];
+  const res = await fetch(latest.url);
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return []; }
 }
 
-async function setJson(key, val) {
-  await kv.set(key, JSON.stringify(val));
+async function writeCollection(key, data) {
+  const blobKey = BLOB_PREFIX + key + '/' + Date.now() + '.json';
+  await put(blobKey, JSON.stringify(data), { access: 'public', token: BLOB_TOKEN });
+  // 清理旧版本（保留最近3个）
+  try {
+    const { blobs } = await list({ prefix: BLOB_PREFIX + key, token: BLOB_TOKEN });
+    const sorted = blobs.sort((a,b) => b.uploadedAt - a.uploadedAt);
+    for (const old of sorted.slice(3)) {
+      await del(old.url, { token: BLOB_TOKEN });
+    }
+  } catch {}
 }
 
-async function delJson(key) {
-  await kv.del(key);
-}
-
-// 集合操作 — 列表用 Redis List
-async function listPush(key, item) {
-  await kv.lpush(key, JSON.stringify(item));
-}
-
-async function listSet(key, index, item) {
-  await kv.lset(key, index, JSON.stringify(item));
-}
-
+// 集合操作
 async function listAll(key) {
-  const items = await kv.lrange(key, 0, -1);
-  return items.map(i => JSON.parse(i));
+  try { return await readCollection(key); } catch { return []; }
+}
+
+async function listPush(key, item) {
+  const data = await listAll(key);
+  data.push(item);
+  await writeCollection(key, data);
 }
 
 async function listRemove(key, predicate) {
-  const all = await listAll(key);
-  const filtered = all.filter(x => !predicate(x));
-  await kv.del(key);
-  for (const item of filtered) {
-    await kv.lpush(key, JSON.stringify(item));
-  }
+  let data = await listAll(key);
+  data = data.filter(x => !predicate(x));
+  await writeCollection(key, data);
 }
 
-// 计数器
-async function incr(key) {
-  return await kv.incr(key);
+async function listSet(key, index, item) {
+  const data = await listAll(key);
+  data[index] = item;
+  await writeCollection(key, data);
 }
 
-// 生成 ID
+// 计数器 — 用 /api/counter 端点存
 async function nextId(key) {
-  return await kv.incr(`counter:${key}`);
+  const counterKey = 'counter_' + key;
+  const all = await listAll(counterKey);
+  const current = all.length > 0 ? all[0] : 0;
+  const next = current + 1;
+  await writeCollection(counterKey, [next]);
+  return next;
 }
 
-module.exports = { diapers, terms, levels, getJson, setJson, delJson, listPush, listAll, listRemove, listSet, incr, nextId };
+// 单值操作
+async function getJson(key) {
+  const data = await listAll('kv_' + key);
+  return data.length > 0 ? data[0] : null;
+}
+
+async function setJson(key, val) {
+  await writeCollection('kv_' + key, [val]);
+}
+
+async function delJson(key) {
+  await writeCollection('kv_' + key, []);
+}
+
+module.exports = { diapers, terms, levels, getJson, setJson, delJson, listPush, listAll, listRemove, listSet, nextId };
