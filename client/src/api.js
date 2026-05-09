@@ -47,6 +47,7 @@ export const authAPI = {
     return data;
   },
   getUser: async (id) => get(`/api/users/${id}`),
+  deleteAccount: async (id) => del(`/api/users/${id}`),
 };
 
 // ====== 纸尿裤 ======

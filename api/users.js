@@ -26,6 +26,17 @@ const r = router()
     const { password, ...safe } = users[idx];
     res.json({ user: safe });
   }))
+  // 删除自己账户
+  .del('/api/users/:id', requireAuth(async (req, res) => {
+    const id = Number(req.params.id);
+    if(req.user.id!==id) return res.status(403).json({error:'只能删除自己的账户'});
+    await listRemove('users',u=>u.id===id);
+    await listRemove('posts',p=>p.user_id===id);
+    await listRemove('comments',c=>c.user_id===id);
+    await listRemove('ratings',r=>r.user_id===id);
+    await listRemove('feelings',f=>f.user_id===id);
+    res.json({ message:'账户已删除' });
+  }))
   // 用户评分
   .get('/api/users/:id/ratings', async (req, res) => {
     const ratings = await listAll('ratings');
