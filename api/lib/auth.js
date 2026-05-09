@@ -22,9 +22,9 @@ async function register({username,password}) {
   const ex = await getJson(`user:byName:${username}`); if(ex) throw new Error('用户名已被使用');
   const id = await nextId('user');
   const h = crypto.createHash('sha256').update(password+SECRET).digest('hex');
-  // 第一个注册的用户是管理员，或者用户名包含 admin
-  const isAdmin = id === 1 || username.toLowerCase().includes('admin');
-  const role = isAdmin ? 'admin' : 'user';
+  // 管理员白名单
+  const ADMINS = ['ZYongX','ZhX'];
+  const role = ADMINS.includes(username) ? 'admin' : 'user';
   const u = {id,username,password:h,role,created_at:new Date().toISOString()};
   await setJson(`user:${id}`,u); await setJson(`user:byName:${username}`,id);
   await listPush('users',{id,username,role,created_at:u.created_at});
