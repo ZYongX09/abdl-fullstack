@@ -592,7 +592,14 @@ select.form-control {
 }
 
 /* ====== 帖子卡片 ====== */
-.post-card { animation: fadeInUp 0.35s ease-out; }
+.post-card {
+  animation: fadeInUp 0.35s ease-out;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
 .post-avatar {
   width: 44px; height: 44px; border-radius: 50%;
   background: var(--primary-light);
@@ -908,8 +915,9 @@ select.form-control {
 .glass-enabled .diaper-card,
 .glass-enabled .rank-item,
 .glass-enabled .hero-card,
+.glass-enabled .post-card,
 .glass-enabled .modal {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.12);
   backdrop-filter: blur(6px) saturate(160%) brightness(0.97);
   -webkit-backdrop-filter: blur(6px) saturate(160%) brightness(0.97);
   border: 1px solid rgba(51,51,51,0.06);
@@ -1022,7 +1030,11 @@ select.form-control {
     inset 0 0 2px rgba(0,0,0,0.4),
     0 2px 6px rgba(0,0,0,0.1);
   border: 1px solid rgba(51,51,51,0.08);
+  color: var(--text) !important;
 }
+.glass-enabled .btn-primary { color: white !important; }
+.glass-enabled .btn-accent { color: white !important; }
+.glass-enabled .btn-danger { color: white !important; }
 .glass-enabled .btn-outline {
   background: rgba(255,255,255,0.05);
 }
