@@ -26,6 +26,17 @@ const r = router()
     const { password, ...safe } = users[idx];
     res.json({ user: safe });
   }))
+  .patch('/api/users/me', requireAuth(async (req, res) => {
+    const users = await listAll('users');
+    const idx = users.findIndex(u=>u.id===req.user.id);
+    if(idx<0) return res.status(404).json({error:'不存在'});
+    const fields = ['avatar','age','region','weight','waist','hip','style_preference','bio'];
+    fields.forEach(f=>{ if(req.body&&req.body[f]!==undefined) users[idx][f]=req.body[f]; });
+    await listRemove('users',()=>true);
+    for(const u of users) await listPush('users',u);
+    const { password, ...safe } = users[idx];
+    res.json({ user: safe });
+  }))
   // 删除自己账户
   .del('/api/users/:id', requireAuth(async (req, res) => {
     const id = Number(req.params.id);
