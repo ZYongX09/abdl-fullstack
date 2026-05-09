@@ -18,7 +18,13 @@ function levels() { if (!_levels) _levels = loadSeed('levels.json'); return _lev
 const BLOB_PREFIX = 'db/';
 const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN || '';
 
+// 检查 Blob 是否已配置
+function checkToken() {
+  if (!BLOB_TOKEN) throw new Error('Vercel Blob 未配置：请在 Vercel 项目 Storage 中创建 Blob 并 Redeploy');
+}
+
 async function readCollection(key) {
+  checkToken();
   const { blobs } = await list({ prefix: BLOB_PREFIX + key, token: BLOB_TOKEN });
   if (blobs.length === 0) return [];
   // 找最新的 blob
@@ -29,6 +35,7 @@ async function readCollection(key) {
 }
 
 async function writeCollection(key, data) {
+  checkToken();
   const blobKey = BLOB_PREFIX + key + '/' + Date.now() + '.json';
   await put(blobKey, JSON.stringify(data), { access: 'public', token: BLOB_TOKEN });
   // 清理旧版本（保留最近3个）
@@ -43,7 +50,7 @@ async function writeCollection(key, data) {
 
 // 集合操作
 async function listAll(key) {
-  try { return await readCollection(key); } catch { return []; }
+  return await readCollection(key);
 }
 
 async function listPush(key, item) {
