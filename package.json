@@ -6,5 +6,7 @@
     "dev": "cd client && npm run dev",
     "build": "cd client && npm run build"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@vercel/blob": "^0.27.0"
+  }
 }
