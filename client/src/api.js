@@ -115,6 +115,16 @@ export const recommendAPI = {
   guess: async () => get('/api/recommend/guess'),
 };
 
+// 兼容旧组件
+const _guessCache = null;
+export const guessAPI = {
+  get: async () => recommendAPI.guess(),
+};
+
+// AI 推荐流式
+import { getRecommendStream } from './recommendStream';
+export { getRecommendStream };
+
 // ====== 对比 ======
 export const compareAPI = {
   compare: async (ids) => get(`/api/diapers/compare?ids=${ids.join(',')}`),
