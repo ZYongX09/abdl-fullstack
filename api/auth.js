@@ -1,24 +1,19 @@
-// api/auth.js — POST 注册 / 登录
-const { register, login, sign } = require('./lib/auth');
+// api/auth.js — /api/auth(/me)? (register, login, me)
+const { register, login, sign, requireAuth } = require('./lib/auth');
+const { router } = require('./lib/router');
 
-module.exports = async function handler(req, res) {
-  try {
-    const { action } = req.query; // ?action=register 或 ?action=login
+const r = router()
+  .post('/api/auth', async (req, res) => {
     const { username, password } = req.body || {};
-
-    if (!username || !password) return res.status(400).json({ error: 'username 和 password 必填' });
-    if (username.length < 3 || username.length > 30) return res.status(400).json({ error: '用户名 3-30 字符' });
-    if (password.length < 6) return res.status(400).json({ error: '密码至少 6 位' });
-
-    let user;
-    if (action === 'register') {
-      user = await register({ username, password });
-    } else {
-      user = await login({ username, password });
-    }
+    if (!username || !password) return res.status(400).json({ error: '用户名和密码必填' });
+    const action = req.query.action || 'login';
+    const user = action === 'register' ? await register({ username, password }) : await login({ username, password });
     const token = sign({ userId: user.id });
     res.json({ token, user });
-  } catch (e) {
-    res.status(400).json({ error: e.message });
-  }
-};
+  })
+  .get('/api/auth/me', requireAuth(async (req, res) => {
+    const { password, ...safe } = req.user;
+    res.json({ user: safe });
+  }));
+
+module.exports = (req, res) => r.handle(req, res);

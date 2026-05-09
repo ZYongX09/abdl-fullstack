@@ -1,6 +1,6 @@
-// api/health.js — GET /api/health 检查 Blob 是否正常
-module.exports = async (req, res) => {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) return res.status(500).json({ ok: false, error: 'BLOB_READ_WRITE_TOKEN 未设置 — 请在 Vercel Storage 中创建 Blob 并 Redeploy' });
+// api/health.js — GET /api/health
+module.exports = (req, res) => {
+  const t = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!t) return res.status(500).json({ ok: false, error: 'BLOB_READ_WRITE_TOKEN not set' });
   res.json({ ok: true, blob: 'connected' });
 };

@@ -1,73 +1,39 @@
-// api/lib/auth.js — 简单的 JWT 认证
+// api/lib/auth.js — JWT 认证
 const { getJson, setJson, nextId } = require('./db');
-
-// 密钥（生产环境用环境变量，测试用固定值）
 const SECRET = process.env.JWT_SECRET || 'abdl-dev-secret-2026';
 const crypto = require('crypto');
 
 function sign(payload) {
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const sig = crypto.createHmac('sha256', SECRET).update(`${header}.${body}`).digest('base64url');
-  return `${header}.${body}.${sig}`;
+  const h = Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url');
+  const b = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const s = crypto.createHmac('sha256',SECRET).update(`${h}.${b}`).digest('base64url');
+  return `${h}.${b}.${s}`;
 }
-
 function verify(token) {
-  try {
-    const [header, body, sig] = token.split('.');
-    const expected = crypto.createHmac('sha256', SECRET).update(`${header}.${body}`).digest('base64url');
-    if (sig !== expected) return null;
-    return JSON.parse(Buffer.from(body, 'base64url').toString());
-  } catch { return null; }
+  try { const [h,b,s]=token.split('.'); const e=crypto.createHmac('sha256',SECRET).update(`${h}.${b}`).digest('base64url'); if(s!==e)return null; return JSON.parse(Buffer.from(b,'base64url').toString()); } catch { return null; }
 }
-
-// 从请求中提取用户
 async function getUser(req) {
-  const auth = req.headers.authorization || '';
-  const token = auth.replace('Bearer ', '');
-  if (!token) return null;
-  const payload = verify(token);
-  if (!payload) return null;
-  return await getJson(`user:${payload.userId}`);
+  const t = (req.headers.authorization||'').replace('Bearer ','');
+  if(!t) return null;
+  const p = verify(t); if(!p) return null;
+  return getJson(`user:${p.userId}`);
 }
-
-// 注册
-async function register({ username, password }) {
-  const existing = await getJson(`user:byName:${username}`);
-  if (existing) throw new Error('用户名已被使用');
+async function register({username,password}) {
+  const ex = await getJson(`user:byName:${username}`); if(ex) throw new Error('用户名已被使用');
   const id = await nextId('user');
-  const hash = crypto.createHash('sha256').update(password + SECRET).digest('hex');
-  const user = { id, username, password: hash, role: 'user', created_at: new Date().toISOString() };
-  await setJson(`user:${id}`, user);
-  await setJson(`user:byName:${username}`, id);
-  return { id, username, role: user.role, created_at: user.created_at };
+  const h = crypto.createHash('sha256').update(password+SECRET).digest('hex');
+  const u = {id,username,password:h,role:'user',created_at:new Date().toISOString()};
+  await setJson(`user:${id}`,u); await setJson(`user:byName:${username}`,id); await listPush('users',{id,username,role:u.role,created_at:u.created_at});
+  return {id,username,role:u.role,created_at:u.created_at};
 }
-
-// 登录
-async function login({ username, password }) {
-  const userId = await getJson(`user:byName:${username}`);
-  if (!userId) throw new Error('用户名或密码错误');
-  const user = await getJson(`user:${userId}`);
-  const hash = crypto.createHash('sha256').update(password + SECRET).digest('hex');
-  if (user.password !== hash) throw new Error('用户名或密码错误');
-  return { id: user.id, username: user.username, role: user.role, created_at: user.created_at };
+async function login({username,password}) {
+  const uid = await getJson(`user:byName:${username}`); if(!uid) throw new Error('用户名或密码错误');
+  const u = await getJson(`user:${uid}`);
+  const h = crypto.createHash('sha256').update(password+SECRET).digest('hex');
+  if(u.password!==h) throw new Error('用户名或密码错误');
+  return {id:u.id,username:u.username,role:u.role,created_at:u.created_at};
 }
-
-// 中间件
-function requireAuth(handler) {
-  return async (req, res) => {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: '请先登录' });
-    req.user = user;
-    return handler(req, res);
-  };
-}
-
-function requireAdmin(handler) {
-  return requireAuth(async (req, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: '需要管理员权限' });
-    return handler(req, res);
-  });
-}
+function requireAuth(h) { return async(r,e)=>{ const u=await getUser(r); if(!u) return e.status(401).json({error:'请先登录'}); r.user=u; return h(r,e); }; }
+function requireAdmin(h) { return requireAuth(async(r,e)=>{ if(r.user.role!=='admin') return e.status(403).json({error:'管理员权限'}); return h(r,e); }); }
 
 module.exports = { sign, getUser, register, login, requireAuth, requireAdmin };

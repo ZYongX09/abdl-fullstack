@@ -2,7 +2,18 @@
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/api/health", "destination": "/api/health" },
+    { "source": "/api/auth(.*)", "destination": "/api/auth" },
+    { "source": "/api/diapers(.*)", "destination": "/api/data" },
+    { "source": "/api/ratings(.*)", "destination": "/api/data" },
+    { "source": "/api/feelings(.*)", "destination": "/api/data" },
+    { "source": "/api/rankings(.*)", "destination": "/api/data" },
+    { "source": "/api/recommend(.*)", "destination": "/api/data" },
+    { "source": "/api/posts(.*)", "destination": "/api/posts" },
+    { "source": "/api/likes", "destination": "/api/posts" },
+    { "source": "/api/users(.*)", "destination": "/api/users" },
+    { "source": "/api/terms(.*)", "destination": "/api/users" },
+    { "source": "/api/admin(.*)", "destination": "/api/admin" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "functions": {
