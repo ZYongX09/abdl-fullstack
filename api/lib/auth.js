@@ -1,5 +1,5 @@
 // api/lib/auth.js — JWT 认证
-const { getJson, setJson, nextId } = require('./db');
+const { getJson, setJson, listPush, nextId } = require('./db');
 const SECRET = process.env.JWT_SECRET || 'abdl-dev-secret-2026';
 const crypto = require('crypto');
 
